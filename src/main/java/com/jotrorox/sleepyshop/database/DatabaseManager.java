@@ -9,6 +9,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -75,15 +76,31 @@ public class DatabaseManager {
     }
 
     public void closeConnection() {
+        executor.shutdown();
+        try {
+            if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
+                plugin
+                    .getLogger()
+                    .warning("Timed out waiting for database tasks to finish.");
+                executor.shutdownNow();
+                executor.awaitTermination(5, TimeUnit.SECONDS);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            executor.shutdownNow();
+            plugin
+                .getLogger()
+                .warning("Interrupted while waiting for database tasks to finish.");
+        }
+
         try {
             if (connection != null && !connection.isClosed()) {
                 connection.close();
             }
-            executor.shutdown();
         } catch (SQLException e) {
             plugin
                 .getLogger()
-                .severe("Could not initialize close SQLite database!");
+                .severe("Could not close H2 database!");
         }
     }
 
