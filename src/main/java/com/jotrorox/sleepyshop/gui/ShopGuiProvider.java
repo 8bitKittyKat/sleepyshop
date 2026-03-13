@@ -1,5 +1,6 @@
 package com.jotrorox.sleepyshop.gui;
 
+import com.jotrorox.sleepyshop.manager.ShopManager;
 import com.jotrorox.sleepyshop.model.Shop;
 import java.util.ArrayList;
 import java.util.List;
@@ -9,8 +10,6 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.block.Block;
-import org.bukkit.block.Chest;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -28,6 +27,11 @@ public class ShopGuiProvider {
         "[SleepyShop] ",
         NamedTextColor.BLUE
     );
+    private final ShopManager manager;
+
+    public ShopGuiProvider(ShopManager manager) {
+        this.manager = manager;
+    }
 
     public void openOwnerGui(Player player, Shop shop) {
         Inventory inv = createBaseGui(shop, 27, OWNER_GUI_TITLE);
@@ -326,7 +330,7 @@ public class ShopGuiProvider {
         ShopInventoryHolder holder = (ShopInventoryHolder) inv.getHolder();
 
         // Calculate max transactions based on chest stock
-        int maxTransactions = calculateMaxTransactions(shop);
+        int maxTransactions = manager.getAvailableTransactions(shop);
         if (maxTransactions == 0) {
             player.sendMessage(
                 PREFIX.append(
@@ -512,26 +516,6 @@ public class ShopGuiProvider {
             createGuiSpacer(Material.BARRIER, "✖ Cancel", NamedTextColor.RED)
         );
     }
-
-    private int calculateMaxTransactions(Shop shop) {
-        if (shop.getSellItem() == null) return 0;
-
-        Block chestBlock = shop.getChestLocation().getBlock();
-        if (!(chestBlock.getState() instanceof Chest chest)) {
-            return 0;
-        }
-
-        Inventory chestInv = chest.getInventory();
-        int totalItems = 0;
-        for (ItemStack item : chestInv.getContents()) {
-            if (item != null && item.isSimilar(shop.getSellItem())) {
-                totalItems += item.getAmount();
-            }
-        }
-
-        return totalItems / shop.getOutputAmount();
-    }
-
     private Inventory createBaseGui(Shop shop, int size, String title) {
         Inventory inv = Bukkit.createInventory(
             new ShopInventoryHolder(shop, title),

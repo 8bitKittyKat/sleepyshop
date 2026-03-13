@@ -44,7 +44,7 @@ public class ShopListener implements Listener {
 
     public ShopListener(ShopManager manager) {
         this.manager = manager;
-        this.guiProvider = new ShopGuiProvider();
+        this.guiProvider = new ShopGuiProvider(manager);
     }
 
     @EventHandler
@@ -105,13 +105,7 @@ public class ShopListener implements Listener {
         }
 
         if (manager.isShopBlock(block)) {
-            Shop associatedShop = null;
-            for (Shop shop : manager.getShops().values()) {
-                if (isSameChest(shop.getChestLocation().getBlock(), block)) {
-                    associatedShop = shop;
-                    break;
-                }
-            }
+            Shop associatedShop = manager.findShopByBlock(block);
 
             if (associatedShop != null) {
                 if (
@@ -183,13 +177,7 @@ public class ShopListener implements Listener {
         if (block == null || !isChest(block)) return;
 
         if (manager.isShopBlock(block)) {
-            Shop associatedShop = null;
-            for (Shop shop : manager.getShops().values()) {
-                if (isSameChest(shop.getChestLocation().getBlock(), block)) {
-                    associatedShop = shop;
-                    break;
-                }
-            }
+            Shop associatedShop = manager.findShopByBlock(block);
 
             if (associatedShop != null) {
                 if (
@@ -237,13 +225,9 @@ public class ShopListener implements Listener {
         if (inv.getHolder() instanceof org.bukkit.block.Container container) {
             Block block = container.getBlock();
             if (isChest(block)) {
-                for (Shop shop : manager.getShops().values()) {
-                    if (
-                        isSameChest(shop.getChestLocation().getBlock(), block)
-                    ) {
-                        manager.updateDisplay(shop);
-                        return;
-                    }
+                Shop shop = manager.findShopByBlock(block);
+                if (shop != null) {
+                    manager.updateDisplay(shop);
                 }
             }
         }
@@ -255,17 +239,6 @@ public class ShopListener implements Listener {
             block.getType() == Material.TRAPPED_CHEST ||
             block.getType() == Material.BARREL
         );
-    }
-
-    private boolean isSameChest(Block shopChest, Block target) {
-        if (shopChest.equals(target)) return true;
-        if (
-            shopChest.getState() instanceof Chest c1 &&
-            target.getState() instanceof Chest c2
-        ) {
-            return c1.getInventory().equals(c2.getInventory());
-        }
-        return false;
     }
 
     @EventHandler
@@ -511,22 +484,7 @@ public class ShopListener implements Listener {
     }
 
     private int calculateMaxTransactions(Shop shop) {
-        if (shop.getSellItem() == null) return 0;
-
-        Block chestBlock = shop.getChestLocation().getBlock();
-        if (!(chestBlock.getState() instanceof Chest chest)) {
-            return 0;
-        }
-
-        Inventory chestInv = chest.getInventory();
-        int totalItems = 0;
-        for (ItemStack item : chestInv.getContents()) {
-            if (item != null && item.isSimilar(shop.getSellItem())) {
-                totalItems += item.getAmount();
-            }
-        }
-
-        return totalItems / shop.getOutputAmount();
+        return manager.getAvailableTransactions(shop);
     }
 
     private void performTransaction(
@@ -536,20 +494,18 @@ public class ShopListener implements Listener {
     ) {
         if (shop.getSellItem() == null) return;
 
-        Block chestBlock = shop.getChestLocation().getBlock();
-        if (!(chestBlock.getState() instanceof Chest chest)) {
+        Inventory chestInv = manager.getInventory(shop);
+        if (chestInv == null) {
             buyer.sendMessage(
                 PREFIX.append(
                     Component.text(
-                        "Error: Chest not found!",
+                        "Error: Shop container not found!",
                         NamedTextColor.RED
                     )
                 )
             );
             return;
         }
-
-        Inventory chestInv = chest.getInventory();
 
         // Calculate total amounts needed
         int totalOutputItems = shop.getOutputAmount() * transactionCount;

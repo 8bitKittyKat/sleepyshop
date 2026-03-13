@@ -11,6 +11,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.Container;
 import org.bukkit.block.Chest;
 import org.bukkit.block.DoubleChest;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -19,6 +20,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class ShopManager {
@@ -140,19 +142,16 @@ public class ShopManager {
 
         // Stock check
         boolean outOfStock = false;
-        if (shop.getSellItem() != null) {
-            Block chestBlock = shop.getChestLocation().getBlock();
-            if (chestBlock.getState() instanceof Chest chest) {
-                Inventory chestInv = chest.getInventory();
-                if (
-                    !chestInv.containsAtLeast(
-                        shop.getSellItem(),
-                        shop.getOutputAmount()
-                    )
-                ) {
-                    outOfStock = true;
-                }
-            }
+        Inventory shopInventory = getInventory(shop);
+        if (
+            shop.getSellItem() != null &&
+            (shopInventory == null ||
+                !shopInventory.containsAtLeast(
+                    shop.getSellItem(),
+                    shop.getOutputAmount()
+                ))
+        ) {
+            outOfStock = true;
         }
 
         FileConfiguration pluginConfig = plugin.getConfig();
@@ -222,8 +221,62 @@ public class ShopManager {
         return shops;
     }
 
+    public Inventory getInventory(Shop shop) {
+        if (shop.getChestLocation() == null) {
+            return null;
+        }
+
+        Block block = shop.getChestLocation().getBlock();
+        if (block.getState() instanceof Container container) {
+            return container.getInventory();
+        }
+
+        return null;
+    }
+
+    public int getAvailableTransactions(Shop shop) {
+        if (shop.getSellItem() == null || shop.getOutputAmount() <= 0) {
+            return 0;
+        }
+
+        Inventory inventory = getInventory(shop);
+        if (inventory == null) {
+            return 0;
+        }
+
+        int totalItems = 0;
+        for (ItemStack item : inventory.getContents()) {
+            if (item != null && item.isSimilar(shop.getSellItem())) {
+                totalItems += item.getAmount();
+            }
+        }
+
+        return totalItems / shop.getOutputAmount();
+    }
+
     public boolean isShopSign(Location loc) {
         return shops.containsKey(locationToString(loc));
+    }
+
+    public Shop findShopByBlock(Block block) {
+        if (isShopSign(block.getLocation())) {
+            return getShop(block.getLocation());
+        }
+
+        if (!isSupportedContainer(block.getType())) {
+            return null;
+        }
+
+        for (Shop shop : shops.values()) {
+            if (
+                shop.getChestLocation() != null &&
+                isSameContainer(shop.getChestLocation(), block)
+            ) {
+                return shop;
+            }
+        }
+
+        return null;
     }
 
     private String locationToString(Location loc) {
@@ -240,29 +293,24 @@ public class ShopManager {
     }
 
     public boolean isShopBlock(Block block) {
-        // 1. Check if it's the sign itself
-        if (isShopSign(block.getLocation())) return true;
+        return findShopByBlock(block) != null;
+    }
 
-        // 2. Check if it's a container
-        Material type = block.getType();
-        if (
+    public void refreshDisplays() {
+        for (Shop shop : shops.values()) {
+            updateDisplay(shop);
+        }
+    }
+
+    private boolean isSupportedContainer(Material type) {
+        return (
             type == Material.CHEST ||
             type == Material.TRAPPED_CHEST ||
             type == Material.BARREL
-        ) {
-            for (Shop shop : shops.values()) {
-                if (shop.getChestLocation() == null) continue;
-
-                // Use the improved helper to check if this block belongs to this shop
-                if (isSameChest(shop.getChestLocation(), block)) {
-                    return true;
-                }
-            }
-        }
-        return false;
+        );
     }
 
-    private boolean isSameChest(Location shopChestLoc, Block targetBlock) {
+    private boolean isSameContainer(Location shopChestLoc, Block targetBlock) {
         // Direct match
         if (shopChestLoc.equals(targetBlock.getLocation())) return true;
 
