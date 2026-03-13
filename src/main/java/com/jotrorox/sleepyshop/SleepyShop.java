@@ -21,7 +21,7 @@ public final class SleepyShop extends JavaPlugin {
         this.databaseManager = new DatabaseManager(this);
         this.shopManager = new ShopManager(this);
         Bukkit.getPluginManager().registerEvents(
-            new ShopListener(shopManager),
+            new ShopListener(this, shopManager),
             this
         );
         Bukkit.getPluginManager().registerEvents(

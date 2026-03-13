@@ -6,7 +6,7 @@ import com.jotrorox.sleepyshop.manager.ShopManager;
 import com.jotrorox.sleepyshop.model.Shop;
 import com.jotrorox.sleepyshop.util.ShopBlocks;
 import io.papermc.paper.event.player.AsyncChatEvent;
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
@@ -32,18 +32,21 @@ import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.java.JavaPlugin;
 
 public class ShopListener implements Listener {
 
+    private final JavaPlugin plugin;
     private final ShopManager manager;
     private final ShopGuiProvider guiProvider;
-    private final Map<UUID, Shop> namingSession = new HashMap<>();
+    private final Map<UUID, Shop> namingSession = new ConcurrentHashMap<>();
     private static final Component PREFIX = Component.text(
         "[SleepyShop] ",
         NamedTextColor.BLUE
     );
 
-    public ShopListener(ShopManager manager) {
+    public ShopListener(JavaPlugin plugin, ShopManager manager) {
+        this.plugin = plugin;
         this.manager = manager;
         this.guiProvider = new ShopGuiProvider(manager);
     }
@@ -604,6 +607,13 @@ public class ShopListener implements Listener {
             event.message()
         );
 
+        plugin
+            .getServer()
+            .getScheduler()
+            .runTask(plugin, () -> handleShopNaming(player, shop, name));
+    }
+
+    private void handleShopNaming(Player player, Shop shop, String name) {
         if (name.equalsIgnoreCase("cancel")) {
             player.sendMessage(
                 PREFIX.append(

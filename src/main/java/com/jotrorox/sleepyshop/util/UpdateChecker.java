@@ -91,33 +91,44 @@ public class UpdateChecker {
         plugin.getLogger().info("Checking for updates...");
 
         checkHangar().thenAccept(result -> {
-            if (result.outdated()) {
-                plugin
-                    .getLogger()
-                    .warning("A new version is available on Hangar!");
-                plugin
-                    .getLogger()
-                    .warning(
-                        "Current: " +
-                            currentVersion +
-                            " | Latest: " +
-                            result.latestVersion()
-                    );
-                plugin.getLogger().warning("Download: " + result.downloadUrl());
-
-                plugin
-                    .getServer()
-                    .getPluginManager()
-                    .registerEvents(
-                        new UpdateCheckListener(plugin, result),
-                        plugin
-                    );
-            } else if (result.latestVersion() != null) {
-                plugin
-                    .getLogger()
-                    .info("You are running the latest version from Hangar!");
+            if (!plugin.isEnabled()) {
+                return;
             }
+
+            plugin
+                .getServer()
+                .getScheduler()
+                .runTask(plugin, () -> handleCheckResult(result));
         });
+    }
+
+    private void handleCheckResult(VersionResult result) {
+        if (result.outdated()) {
+            plugin
+                .getLogger()
+                .warning("A new version is available on Hangar!");
+            plugin
+                .getLogger()
+                .warning(
+                    "Current: " +
+                        currentVersion +
+                        " | Latest: " +
+                        result.latestVersion()
+                );
+            plugin.getLogger().warning("Download: " + result.downloadUrl());
+
+            plugin
+                .getServer()
+                .getPluginManager()
+                .registerEvents(
+                    new UpdateCheckListener(plugin, result),
+                    plugin
+                );
+        } else if (result.latestVersion() != null) {
+            plugin
+                .getLogger()
+                .info("You are running the latest version from Hangar!");
+        }
     }
 
     private String makeRequest(String urlString) {
