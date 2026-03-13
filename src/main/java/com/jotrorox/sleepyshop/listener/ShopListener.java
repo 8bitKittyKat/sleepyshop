@@ -4,6 +4,7 @@ import com.jotrorox.sleepyshop.gui.ShopGuiProvider;
 import com.jotrorox.sleepyshop.gui.ShopInventoryHolder;
 import com.jotrorox.sleepyshop.manager.ShopManager;
 import com.jotrorox.sleepyshop.model.Shop;
+import com.jotrorox.sleepyshop.util.ShopBlocks;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -133,7 +134,9 @@ public class ShopListener implements Listener {
                         .getBlock();
                     if (signBlock.getState() instanceof Sign) {
                         Material signType = signBlock.getType();
-                        ItemStack signItem = getSignDropItem(signType);
+                        ItemStack signItem = ShopBlocks.getSignDropItem(
+                            signType
+                        );
                         signBlock
                             .getWorld()
                             .dropItemNaturally(
@@ -310,7 +313,9 @@ public class ShopListener implements Listener {
                     var signBlock = shop.getSignLocation().getBlock();
                     if (signBlock.getState() instanceof Sign) {
                         Material signType = signBlock.getType();
-                        ItemStack signItem = getSignDropItem(signType);
+                        ItemStack signItem = ShopBlocks.getSignDropItem(
+                            signType
+                        );
                         signBlock.getWorld()
                                 .dropItemNaturally(
                                         signBlock.getLocation(),
@@ -710,30 +715,5 @@ public class ShopListener implements Listener {
             }
         }
         return remaining <= 0;
-    }
-
-    /**
-     * Gets the appropriate sign item to drop based on the sign block type.
-     */
-    private ItemStack getSignDropItem(Material signType) {
-        String name = signType.name();
-
-        // Normalize wall variants to the base item
-        if (name.endsWith("_WALL_HANGING_SIGN")) {
-            name = name.replace("_WALL_HANGING_SIGN", "_HANGING_SIGN");
-        } else if (name.endsWith("_WALL_SIGN")) {
-            name = name.replace("_WALL_SIGN", "_SIGN");
-        }
-
-        Material base = Material.matchMaterial(name);
-        if (
-            base != null &&
-            (base.name().endsWith("_SIGN") ||
-                base.name().endsWith("_HANGING_SIGN"))
-        ) {
-            return new ItemStack(base);
-        }
-
-        return new ItemStack(Material.OAK_SIGN); // Fallback
     }
 }

@@ -45,6 +45,20 @@ Placement radius (distance from world spawn) can be configured to restrict where
 placement-radius: -1 # -1 = no restriction, >0 = max distance from world spawn
 ```
 
+## Admin Commands
+
+`/sleepyshop reload`
+Reloads `config.yml` and refreshes all floating shop displays.
+
+`/sleepyshop list [owner]`
+Lists tracked shops, optionally filtered by owner name.
+
+`/sleepyshop inspect`
+Shows owner, trade, stock, and location details for the shop sign or container you are looking at.
+
+`/sleepyshop remove`
+Removes the shop sign or container you are looking at without needing to break blocks manually.
+
 ## Requirements
 
 *   **Java 21** or higher.

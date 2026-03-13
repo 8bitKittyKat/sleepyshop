@@ -1,11 +1,18 @@
 name: SleepyShop
-version: "0.6"
+version: "${version}"
 main: com.jotrorox.sleepyshop.SleepyShop
 api-version: "1.21"
 authors: [Johannes (jotrorox) Müller <mail@jotrorox.com>]
 website: https://jotrorox.com
 
+commands:
+  sleepyshop:
+    description: "Admin commands for SleepyShop"
+    usage: "/sleepyshop <reload|list|inspect|remove>"
+    permission: sleepyshop.admin
+    aliases: [sshop]
+
 permissions:
   sleepyshop.admin:
-    description: "Allows you to access the Chests and remove shops if needed"
+    description: "Allows you to manage SleepyShop shops and admin commands"
     default: op
