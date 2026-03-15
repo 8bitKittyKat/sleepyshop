@@ -289,7 +289,23 @@ public class ShopGuiProvider {
                 "Floating Text",
                 NamedTextColor.YELLOW,
                 "Status: " + holoStatus,
-                "Click to toggle shop display"
+                "Click to toggle shop text display"
+            )
+        );
+
+        // Toggle Item Hologram
+        Material itemMaterial = shop.isShowItemDisplay()
+            ? Material.APPLE
+            : Material.COAL;
+        String itemStatus = shop.isShowItemDisplay() ? "Enabled" : "Disabled";
+        inv.setItem(
+            12,
+            createGuiSpacer(
+                itemMaterial,
+                "Floating Item",
+                NamedTextColor.GREEN,
+                "Status: " + itemStatus,
+                "Click to toggle floating item display"
             )
         );
 

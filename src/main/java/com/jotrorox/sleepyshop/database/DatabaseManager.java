@@ -32,14 +32,46 @@ public class DatabaseManager {
         "output_amount INTEGER," +
         "shop_name TEXT," +
         "show_display BOOLEAN," +
+        "show_itemdisplay BOOLEAN," +
         "show_stock_message BOOLEAN," +
-        "display_entity_id TEXT" +
+        "display_entity_id TEXT," +
+        "itemdisplay_entity_id TEXT" +
         ");";
 
     public DatabaseManager(JavaPlugin plugin) {
         this.plugin = plugin;
         this.executor = Executors.newSingleThreadExecutor();
         initDatabase();
+    }
+
+    public void upgradeDatabase() {
+        try {
+            // Check for "show_itemdisplay" column
+            ResultSet rs = connection.getMetaData().getColumns(null, null, "SHOPS", "SHOW_ITEMDISPLAY");
+            if (!rs.next()) {
+                try (Statement stmt = connection.createStatement()) {
+                    stmt.executeUpdate("ALTER TABLE shops ADD COLUMN show_itemdisplay BOOLEAN");
+                    plugin.getLogger().info("Added column 'show_itemdisplay' to 'shops' table.");
+                }
+            } else {
+                plugin.getLogger().info("Column 'show_itemdisplay' already exists.");
+            }
+            rs.close();
+
+            // Check for "itemdisplay_entity_id" column
+            rs = connection.getMetaData().getColumns(null, null, "SHOPS", "ITEMDISPLAY_ENTITY_ID");
+            if (!rs.next()) {
+                try (Statement stmt = connection.createStatement()) {
+                    stmt.executeUpdate("ALTER TABLE shops ADD COLUMN itemdisplay_entity_id TEXT");
+                    plugin.getLogger().info("Added column 'itemdisplay_entity_id' to 'shops' table.");
+                }
+            } else {
+                plugin.getLogger().info("Column 'itemdisplay_entity_id' already exists.");
+            }
+            rs.close();
+        } catch (SQLException e) {
+            plugin.getLogger().severe("Error during schema migration: " + e.getMessage());
+        }
     }
 
     private void initDatabase() {
@@ -65,6 +97,8 @@ public class DatabaseManager {
             try (Statement statement = connection.createStatement()) {
                 statement.execute(SHOP_TABLE_DDL);
             }
+
+            upgradeDatabase();
 
             if (sqliteFile.exists()) {
                 plugin.getLogger().severe("You are using the old db system please update using the 0.5 release or contact the authors!");
@@ -161,8 +195,8 @@ public class DatabaseManager {
             () -> {
                 String sql =
                     "MERGE INTO shops (sign_location, chest_location, owner, sell_item, payment_item, " +
-                    "take_amount, output_amount, shop_name, show_display, show_stock_message, display_entity_id) " +
-                    "KEY(sign_location) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    "take_amount, output_amount, shop_name, show_display, show_itemdisplay, show_stock_message, display_entity_id, itemdisplay_entity_id) " +
+                    "KEY(sign_location) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
                 try (
                     PreparedStatement pstmt = connection.prepareStatement(sql)
                 ) {
@@ -184,16 +218,25 @@ public class DatabaseManager {
                     pstmt.setInt(7, shop.getOutputAmount());
                     pstmt.setString(8, shop.getShopName());
                     pstmt.setBoolean(9, shop.isShowDisplay());
-                    pstmt.setBoolean(10, shop.isShowStockMessage());
+                    pstmt.setBoolean(10, shop.isShowItemDisplay());
+                    pstmt.setBoolean(11, shop.isShowStockMessage());
                     pstmt.setString(
-                        11,
+                        12,
                         shop.getDisplayEntityId() != null
                             ? shop.getDisplayEntityId().toString()
+                            : null
+                    );
+                    
+                    pstmt.setString(
+                        13,
+                        shop.getItemDisplayEntityId() != null
+                            ? shop.getItemDisplayEntityId().toString()
                             : null
                     );
                     pstmt.executeUpdate();
                 } catch (SQLException e) {
                     plugin.getLogger().severe("Could not save shop to H2!");
+                    plugin.getLogger().severe(e.getMessage());
                 }
             },
             executor
@@ -257,6 +300,7 @@ public class DatabaseManager {
                         shop.setOutputAmount(rs.getInt("output_amount"));
                         shop.setShopName(rs.getString("shop_name"));
                         shop.setShowDisplay(rs.getBoolean("show_display"));
+                        shop.setShowItemDisplay(rs.getBoolean("show_itemdisplay"));
                         shop.setShowStockMessage(
                             rs.getBoolean("show_stock_message")
                         );
@@ -264,6 +308,11 @@ public class DatabaseManager {
                         if (displayId != null) {
                             shop.setDisplayEntityId(UUID.fromString(displayId));
                         }
+                        String itemdisplayId = rs.getString("itemdisplay_entity_id");
+                        if (itemdisplayId != null) {
+                            shop.setItemDisplayEntityId(UUID.fromString(itemdisplayId));
+                        }
+                        
                         shops.add(shop);
                     }
                 } catch (SQLException e) {

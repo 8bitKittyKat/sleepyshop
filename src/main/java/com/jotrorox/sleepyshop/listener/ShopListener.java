@@ -410,6 +410,11 @@ public class ShopListener implements Listener {
                     shop.setShowDisplay(!shop.isShowDisplay());
                     manager.saveShop(shop);
                     guiProvider.openOtherGui(player, shop);
+                } else if (slot == 12) {
+                    // Toggle Item Hologram
+                    shop.setShowItemDisplay(!shop.isShowItemDisplay());
+                    manager.saveShop(shop);
+                    guiProvider.openOtherGui(player, shop);
                 } else if (slot == 15) {
                     // Toggle Stock Warning
                     shop.setShowStockMessage(!shop.isShowStockMessage());

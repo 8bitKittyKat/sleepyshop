@@ -18,10 +18,16 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.TextDisplay;
+import org.bukkit.entity.ItemDisplay;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
+
+import org.bukkit.util.Transformation;
+import org.joml.AxisAngle4f;
+import org.joml.Vector3f;
+import org.joml.Matrix4f;
 
 public class ShopManager {
 
@@ -66,6 +72,10 @@ public class ShopManager {
             Entity entity = Bukkit.getEntity(shop.getDisplayEntityId());
             if (entity != null) entity.remove();
         }
+        if (shop != null && shop.getItemDisplayEntityId() != null) {
+            Entity entity = Bukkit.getEntity(shop.getItemDisplayEntityId());
+            if (entity != null) entity.remove();
+        }
         ((SleepyShop) plugin).getDatabaseManager().removeShop(signLoc);
     }
 
@@ -93,12 +103,30 @@ public class ShopManager {
             return;
         }
 
+        if (!shop.isShowItemDisplay()) {
+            if (shop.getItemDisplayEntityId() != null) {
+                Entity entity = Bukkit.getEntity(shop.getItemDisplayEntityId());
+                if (entity != null) entity.remove();
+                shop.setItemDisplayEntityId(null);
+                ((SleepyShop) plugin).getDatabaseManager().saveShop(shop);
+            }
+            return;
+        }
+
         TextDisplay display = null;
+        ItemDisplay display2 = null;
 
         if (shop.getDisplayEntityId() != null) {
             Entity entity = Bukkit.getEntity(shop.getDisplayEntityId());
             if (entity instanceof TextDisplay td) {
                 display = td;
+            }
+        }
+
+        if (shop.getItemDisplayEntityId() != null) {
+            Entity entity = Bukkit.getEntity(shop.getItemDisplayEntityId());
+            if (entity instanceof ItemDisplay id) {
+                display2 = id;
             }
         }
 
@@ -116,15 +144,45 @@ public class ShopManager {
             }
         }
 
+        if (display2 == null) {
+            // Search for an existing display at the location to avoid duplicates
+            for (Entity nearby : loc
+                .getWorld()
+                .getNearbyEntities(loc, 0.1, 0.1, 0.1)) {
+                if (nearby instanceof ItemDisplay id) {
+                    display2 = id;
+                    shop.setItemDisplayEntityId(display2.getUniqueId());
+                    ((SleepyShop) plugin).getDatabaseManager().saveShop(shop);
+                    break;
+                }
+            }
+        }
+
         if (display == null) {
             display = loc.getWorld().spawn(loc, TextDisplay.class);
             shop.setDisplayEntityId(display.getUniqueId());
             display.setBillboard(Display.Billboard.CENTER);
+            display.setViewRange(15);
 
             // Save the displayId immediately
             ((SleepyShop) plugin).getDatabaseManager().saveShop(shop);
         } else {
             display.teleport(loc);
+        }
+
+        final ItemDisplay[] display2Ref = new ItemDisplay[1];
+
+        if (display2 == null) {
+            display2 = loc.getWorld().spawn(loc, ItemDisplay.class);
+            shop.setItemDisplayEntityId(display2.getUniqueId());
+            display2.setBillboard(Display.Billboard.CENTER);
+            display2.setViewRange(15);
+            display2.setShadowRadius(0);
+            display2.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.GROUND);
+
+            if (shop.getSellItem() != null) {
+                display2.setItemStack(shop.getSellItem());
+            }
         }
 
         String ownerName = Bukkit.getOfflinePlayer(shop.getOwner()).getName();
@@ -211,6 +269,37 @@ public class ShopManager {
         }
 
         display.text(text);
+
+        if (shop.isShowDisplay()) {
+            display.setTransformation(
+                new Transformation(
+                new Vector3f(0.0f, -0.15f, 0.0f), 
+                new AxisAngle4f(),
+                new Vector3f(0.333f, 0.333f, 0.333f),
+                new AxisAngle4f())
+            );
+        };
+
+        if (shop.isShowItemDisplay()) {
+            Location newLocation = display.getLocation().add(0, 0.33, 0);
+            display2.teleport(newLocation);
+        };
+
+        // int duration = 5 * 20;
+
+
+        // Bukkit.getScheduler().runTaskTimer(plugin, task -> {
+        //     ItemDisplay localDisplay = display2Ref[0];
+        //     if (localDisplay != null && localDisplay.isValid()) {
+        //         task.cancel();
+        //         return;
+        //     }
+        //     Matrix4f mat = new Matrix4f().scale(0.5F);
+        //     mat.rotateY((float) Math.toRadians(180) + 0.1f);
+        //     localDisplay.setTransformationMatrix(mat);
+        //     localDisplay.setInterpolationDelay(0); 
+        //     localDisplay.setInterpolationDuration(duration); 
+        // }, 1, duration);
     }
 
     public Shop getShop(Location signLoc) {
